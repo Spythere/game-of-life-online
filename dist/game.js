@@ -102,7 +102,7 @@ class Game {
             next.push(++this._currentGen[next[0]][next[1]].heatCount);
             // console.log(this._currentGen[next[0]][next[1]].heatCount);
             // console.log(next);
-            // i % 1000 ? console.log(next) : null;
+            // i % 1000 ? console.log(next) : null; 
         });
         this._interactions.length = 0;
         this._currentIteration++;
