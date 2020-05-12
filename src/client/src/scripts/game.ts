@@ -1,4 +1,4 @@
-import { Vue, Component } from "vue-property-decorator";
+import { Vue, Component, Watch } from "vue-property-decorator";
 import io from "socket.io-client";
 
 import PatternCreator from './pattern_creator'
@@ -17,8 +17,14 @@ export default class Home extends Vue {
     camera = {
         offsetX: 0,
         offsetY: 0,
-        zoomFactor: 1
-    }
+        viewBox: {
+            fromCellX: 0,
+            fromCellY: 0,
+            toCellX: 0,
+            toCellY: 0
+        },
+        zoomFactor: 0,
+    };
 
     // Mouse variables
     mouseX: number = 0;
@@ -60,6 +66,8 @@ export default class Home extends Vue {
         this.socket = io(this.isDev ? `http://localhost:${this.devPort}` : "");
 
         this.handleSocketConnection();
+
+        this.camera.zoomFactor = 1;
     }
 
     mounted() {
@@ -81,30 +89,30 @@ export default class Home extends Vue {
         this.socket.on("init_pack", (initPack: any) => {
             this.gameGrid = { ...initPack };
 
-            // console.log(initPack.heatMap);
-
-
             this.resizeCanvas();
             this.camera.offsetX = (this.context.canvas.width - this.gameGrid.dimensions.cols * this.gameGrid.cellSize) / 2;
             this.camera.offsetY = (this.context.canvas.height - this.gameGrid.dimensions.rows * this.gameGrid.cellSize) / 2;
+
+            const boundary = this.context.canvas.getBoundingClientRect();
+
+            this.camera.viewBox.fromCellX = Math.floor(-this.camera.offsetX / this.gameGrid.cellSize);
+            this.camera.viewBox.toCellX = this.camera.viewBox.fromCellX +
+                Math.floor(boundary.width / this.gameGrid.cellSize);
+
+            this.camera.viewBox.fromCellY = Math.floor(-this.camera.offsetY / this.gameGrid.cellSize);
+            this.camera.viewBox.toCellY = this.camera.viewBox.fromCellY +
+                Math.floor(boundary.height / this.gameGrid.cellSize);
 
             this.gameState = GameState.RUNNING;
             this.renderGame();
         });
 
         this.socket.on("update_pack", (updatePack: any) => {
-            // this.gameGrid.currentGen = updatePack.currentGen
             updatePack.nextGen.forEach((next: any) => {
-                // this.gameGrid.currentGen[next[0]][next[1]].state = next[2];
-                // this.gameGrid.currentGen[next[0]][next[1]].heatCount = next[3];
-
                 this.$set(this.gameGrid.currentGen[next[0]][next[1]], 'state', next[2]);
                 this.$set(this.gameGrid.currentGen[next[0]][next[1]], 'heatCount', next[3]);
 
             });
-
-            // console.log(this.gameGrid.currentGen[0][1].heatCount);
-
 
             this.gameGrid.currentIteration = updatePack.currentIteration;
         });
@@ -142,6 +150,16 @@ export default class Home extends Vue {
             this.camera.offsetX = (e.pageX - this.mousePanStartX) / this.camera.zoomFactor;
             this.camera.offsetY = (e.pageY - this.mousePanStartY) / this.camera.zoomFactor;
         }
+
+        const boundary = this.context.canvas.getBoundingClientRect();
+
+        this.camera.viewBox.fromCellX = Math.floor(-this.camera.offsetX / this.gameGrid.cellSize);
+        this.camera.viewBox.toCellX = this.camera.viewBox.fromCellX +
+            Math.floor(boundary.width / this.gameGrid.cellSize);
+
+        this.camera.viewBox.fromCellY = Math.floor(-this.camera.offsetY / this.gameGrid.cellSize);
+        this.camera.viewBox.toCellY = this.camera.viewBox.fromCellY +
+            Math.floor(boundary.height / this.gameGrid.cellSize);
     }
 
     mouseDown(e: MouseEvent) {
@@ -157,16 +175,12 @@ export default class Home extends Vue {
     mouseUp(e: MouseEvent) {
         if (this.gameState != GameState.RUNNING) return;
 
+
         this.mouseDragging = false;
     }
 
     canvasClick(e: MouseEvent) {
         if (this.gameState != GameState.RUNNING) return;
-
-        // console.log(this.gameGrid.currentGen[this.mouseCellRow][this.mouseCellCol].heatCount);
-        // console.log(this.mouseCellRow, this.mouseCellCol);
-
-
 
         if (this.patternCreator.isOpen || !this.patternCreator.isPlacing) return;
 
@@ -193,11 +207,16 @@ export default class Home extends Vue {
         // this.context.transform(this.camera.zoomFactor, 0, 0, this.camera.zoomFactor, this.camera.offsetX, this.camera.offsetY);
         this.context.translate(this.camera.offsetX, this.camera.offsetY);
 
+
+
         // Rendering grid
         this.context.lineWidth = 1;
         this.context.strokeStyle = "gray";
-        for (let row = 0; row < this.gameGrid.dimensions.rows; row++) {
-            for (let col = 0; col < this.gameGrid.dimensions.cols; col++) {
+        for (let row = this.camera.viewBox.fromCellX; row <= this.camera.viewBox.toCellX + 1; row++) {
+            for (let col = this.camera.viewBox.fromCellY; col <= this.camera.viewBox.toCellY + 1; col++) {
+                if (row > this.gameGrid.dimensions.rows - 1 || row < 0) continue;
+                if (col > this.gameGrid.dimensions.cols - 1 || col < 0) continue;
+
                 const cell = this.gameGrid.currentGen[row][col];
 
                 if (!this.heatmapOn) {
