@@ -1,6 +1,6 @@
 import Vue from "vue";
 import VueRouter from "vue-router";
-import Home from "../views/Home.vue";
+import Game from "../views/Game.vue";
 
 const PAGE_NAME: string = "Game of Life Online"
 
@@ -9,8 +9,8 @@ Vue.use(VueRouter);
 const routes = [
   {
     path: "/",
-    name: "home",
-    component: Home,
+    name: "game",
+    component: Game,
     meta: {
       title: "Test"
     }
