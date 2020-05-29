@@ -23,7 +23,6 @@ export default class Home extends Vue {
             toCellX: 0,
             toCellY: 0
         },
-        zoomFactor: 1,
     };
 
     // Mouse variables
@@ -63,19 +62,19 @@ export default class Home extends Vue {
     socket!: any;
 
     toGameX(screenX: number) :number {
-        return screenX / this.camera.zoomFactor - this.camera.offsetX;
+        return screenX  - this.camera.offsetX;
     }
 
     toGameY(screenY: number) :number {
-        return screenY / this.camera.zoomFactor - this.camera.offsetY;
+        return screenY  - this.camera.offsetY;
     }
 
     toScreenX(gameX: number) :number {
-        return (gameX + this.camera.offsetX) * this.camera.zoomFactor;
+        return (gameX + this.camera.offsetX) ;
     }
 
     toScreenY(gameY: number) :number {
-        return (gameY + this.camera.offsetY) * this.camera.zoomFactor;
+        return (gameY + this.camera.offsetY);
     }
 
     calculateViewBox(){
@@ -83,13 +82,12 @@ export default class Home extends Vue {
 
         this.camera.viewBox.fromCellX = Math.floor(-this.camera.offsetX / this.gameGrid.cellSize);
         this.camera.viewBox.toCellX = this.camera.viewBox.fromCellX +
-            Math.floor(boundary.width / this.gameGrid.cellSize / this.camera.zoomFactor);
+            Math.floor(boundary.width / this.gameGrid.cellSize);
 
         this.camera.viewBox.fromCellY = Math.floor(-this.camera.offsetY / this.gameGrid.cellSize);
         this.camera.viewBox.toCellY = this.camera.viewBox.fromCellY +
-            Math.floor(boundary.height / this.gameGrid.cellSize / this.camera.zoomFactor);
+            Math.floor(boundary.height / this.gameGrid.cellSize);
 
-            console.log(this.camera.viewBox.fromCellX, this.camera.viewBox.toCellX);
     }
 
 
@@ -106,26 +104,6 @@ export default class Home extends Vue {
 
         window.addEventListener('resize', () => {
             this.resizeCanvas();
-        });
-
-        window.addEventListener('wheel', (e: WheelEvent) => {
-            const mouseZoomStartX = this.toGameX(e.pageX);
-            const mouseZoomStartY = this.toGameY(e.pageY);
-
-            if (e.deltaY < 0) this.camera.zoomFactor *= 1.05
-            else this.camera.zoomFactor *= 0.95
-
-            console.log(this.camera.zoomFactor);
-            
-
-            const mouseZoomEndX = this.toGameX(e.pageX);
-            const mouseZoomEndY = this.toGameY(e.pageY);
-
-            this.camera.offsetX -= mouseZoomStartX - mouseZoomEndX;
-            this.camera.offsetY -= mouseZoomStartY - mouseZoomEndY;
-
-            this.calculateViewBox();
-            
         });
     }
 
@@ -177,21 +155,25 @@ export default class Home extends Vue {
     mouseMove(e: MouseEvent) {
         if (this.gameState != GameState.RUNNING) return;
 
+        this.calculateViewBox();
         const boundaries = this.context.canvas.getBoundingClientRect();
-        this.mouseCellCol = this.toScreenX(
-            (e.pageX - this.camera.offsetX - boundaries.left) / this.gameGrid.cellSize 
+        const cellSize = this.gameGrid.cellSize;
+        
+        this.mouseCellCol = Math.floor(
+            (e.pageX - this.camera.offsetX - boundaries.left) / cellSize
         );
 
-        this.mouseCellRow = this.toScreenY(
-            (e.pageY - this.camera.offsetY - boundaries.top) / this.gameGrid.cellSize 
+        this.mouseCellRow = Math.floor(
+            (e.pageY - this.camera.offsetY - boundaries.top) / this.gameGrid.cellSize
         );
 
+        console.log(this.mouseCellCol);
+        
         if (this.mouseDragging) {
             this.camera.offsetX = (e.pageX - this.mousePanStartX);
             this.camera.offsetY = (e.pageY - this.mousePanStartY);
         }
 
-        this.calculateViewBox();
     }
 
     mouseDown(e: MouseEvent) {
@@ -250,25 +232,23 @@ export default class Home extends Vue {
 
                 const cell = this.gameGrid.currentGen[row][col];
 
-                if (!this.heatmapOn) {
+                if (!this.heatmapOn) 
                     this.context.fillStyle = cell.state ? "black" : "white";
-                } else {
+                 else 
                     this.context.fillStyle = `hsl(${cell.heatCount}, 100%, 50%)`;
-                }
-
-
+                
                 this.context.fillRect(
                     this.toScreenX(row * this.gameGrid.cellSize),
                     this.toScreenY(col * this.gameGrid.cellSize),
-                    this.gameGrid.cellSize * this.camera.zoomFactor,
-                    this.gameGrid.cellSize * this.camera.zoomFactor
+                    this.gameGrid.cellSize,
+                    this.gameGrid.cellSize
                 );
 
                 this.context.strokeRect(
                     this.toScreenX(row * this.gameGrid.cellSize),
                     this.toScreenY(col * this.gameGrid.cellSize),
-                    this.gameGrid.cellSize * this.camera.zoomFactor,
-                    this.gameGrid.cellSize * this.camera.zoomFactor
+                    this.gameGrid.cellSize,
+                    this.gameGrid.cellSize
                 );
             }
         }
@@ -294,12 +274,11 @@ export default class Home extends Vue {
                             continue;
                         }
 
-
                         this.context.fillRect(
                             this.toScreenX(offsetCol),
                             this.toScreenY(offsetRow),
-                            this.gameGrid.cellSize * this.camera.zoomFactor,
-                            this.gameGrid.cellSize * this.camera.zoomFactor
+                            this.gameGrid.cellSize,
+                            this.gameGrid.cellSize
                         );
                     }
                 }
@@ -308,10 +287,10 @@ export default class Home extends Vue {
             this.context.strokeStyle = outOfBounds ? "red" : "black";
             this.context.lineWidth = 2;
             this.context.strokeRect(
-                this.toScreenX((this.mouseCellCol - 2) * this.gameGrid.cellSize),
-                this.toScreenY((this.mouseCellRow - 2) * this.gameGrid.cellSize),
-                this.gameGrid.cellSize * 5 * this.camera.zoomFactor,
-                this.gameGrid.cellSize * 5 * this.camera.zoomFactor
+                (this.mouseCellCol - 2) * this.gameGrid.cellSize,
+                (this.mouseCellRow - 2) * this.gameGrid.cellSize,
+                this.gameGrid.cellSize * 5,
+                this.gameGrid.cellSize * 5
             );
         }
 
