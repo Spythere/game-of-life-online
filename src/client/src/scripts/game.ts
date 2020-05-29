@@ -62,20 +62,34 @@ export default class Home extends Vue {
 
     socket!: any;
 
-    toGameX(screenX: number) {
+    toGameX(screenX: number) :number {
         return screenX / this.camera.zoomFactor - this.camera.offsetX;
     }
 
-    toGameY(screenY: number) {
+    toGameY(screenY: number) :number {
         return screenY / this.camera.zoomFactor - this.camera.offsetY;
     }
 
-    toScreenX(gameX: number) {
+    toScreenX(gameX: number) :number {
         return (gameX + this.camera.offsetX) * this.camera.zoomFactor;
     }
 
-    toScreenY(gameY: number) {
+    toScreenY(gameY: number) :number {
         return (gameY + this.camera.offsetY) * this.camera.zoomFactor;
+    }
+
+    calculateViewBox(){
+        const boundary = this.context.canvas.getBoundingClientRect();
+
+        this.camera.viewBox.fromCellX = Math.floor(-this.camera.offsetX / this.gameGrid.cellSize);
+        this.camera.viewBox.toCellX = this.camera.viewBox.fromCellX +
+            Math.floor(boundary.width / this.gameGrid.cellSize / this.camera.zoomFactor);
+
+        this.camera.viewBox.fromCellY = Math.floor(-this.camera.offsetY / this.gameGrid.cellSize);
+        this.camera.viewBox.toCellY = this.camera.viewBox.fromCellY +
+            Math.floor(boundary.height / this.gameGrid.cellSize / this.camera.zoomFactor);
+
+            console.log(this.camera.viewBox.fromCellX, this.camera.viewBox.toCellX);
     }
 
 
@@ -101,11 +115,17 @@ export default class Home extends Vue {
             if (e.deltaY < 0) this.camera.zoomFactor *= 1.05
             else this.camera.zoomFactor *= 0.95
 
+            console.log(this.camera.zoomFactor);
+            
+
             const mouseZoomEndX = this.toGameX(e.pageX);
             const mouseZoomEndY = this.toGameY(e.pageY);
 
             this.camera.offsetX -= mouseZoomStartX - mouseZoomEndX;
             this.camera.offsetY -= mouseZoomStartY - mouseZoomEndY;
+
+            this.calculateViewBox();
+            
         });
     }
 
@@ -117,15 +137,7 @@ export default class Home extends Vue {
             this.camera.offsetX = (this.context.canvas.width - this.gameGrid.dimensions.cols * this.gameGrid.cellSize) / 2;
             this.camera.offsetY = (this.context.canvas.height - this.gameGrid.dimensions.rows * this.gameGrid.cellSize) / 2;
 
-            const boundary = this.context.canvas.getBoundingClientRect();
-
-            this.camera.viewBox.fromCellX = Math.floor(-this.camera.offsetX / this.gameGrid.cellSize);
-            this.camera.viewBox.toCellX = this.camera.viewBox.fromCellX +
-                Math.floor(boundary.width / this.gameGrid.cellSize);
-
-            this.camera.viewBox.fromCellY = Math.floor(-this.camera.offsetY / this.gameGrid.cellSize);
-            this.camera.viewBox.toCellY = this.camera.viewBox.fromCellY +
-                Math.floor(boundary.height / this.gameGrid.cellSize);
+            this.calculateViewBox();
 
             this.gameState = GameState.RUNNING;
             this.renderGame();
@@ -158,16 +170,20 @@ export default class Home extends Vue {
         this.canvasHeight = height;
     }
 
+    mouseOut(e: MouseEvent){
+        // this.mouseDragging = false;
+    }
+
     mouseMove(e: MouseEvent) {
         if (this.gameState != GameState.RUNNING) return;
 
         const boundaries = this.context.canvas.getBoundingClientRect();
         this.mouseCellCol = this.toScreenX(
-            (e.pageX - this.camera.offsetX - boundaries.left) / this.gameGrid.cellSize
+            (e.pageX - this.camera.offsetX - boundaries.left) / this.gameGrid.cellSize 
         );
 
         this.mouseCellRow = this.toScreenY(
-            (e.pageY - this.camera.offsetY - boundaries.top) / this.gameGrid.cellSize
+            (e.pageY - this.camera.offsetY - boundaries.top) / this.gameGrid.cellSize 
         );
 
         if (this.mouseDragging) {
@@ -175,15 +191,7 @@ export default class Home extends Vue {
             this.camera.offsetY = (e.pageY - this.mousePanStartY);
         }
 
-        const boundary = this.context.canvas.getBoundingClientRect();
-
-        this.camera.viewBox.fromCellX = Math.floor(-this.camera.offsetX / this.gameGrid.cellSize);
-        this.camera.viewBox.toCellX = this.camera.viewBox.fromCellX +
-            Math.floor(boundary.width / this.gameGrid.cellSize);
-
-        this.camera.viewBox.fromCellY = Math.floor(-this.camera.offsetY / this.gameGrid.cellSize);
-        this.camera.viewBox.toCellY = this.camera.viewBox.fromCellY +
-            Math.floor(boundary.height / this.gameGrid.cellSize);
+        this.calculateViewBox();
     }
 
     mouseDown(e: MouseEvent) {

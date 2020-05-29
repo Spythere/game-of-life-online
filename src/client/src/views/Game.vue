@@ -41,6 +41,7 @@
             @click="canvasClick"
             @mousedown="mouseDown"
             @mouseup="mouseUp"
+            @mouseout="mouseOut"
           ></canvas>
         </v-touch>
       </div>
