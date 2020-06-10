@@ -12,11 +12,12 @@ class Game {
         this._currentIteration = 0;
         this._tickSpeedMultiplier = 2;
         this._currentGen = new Array(this._dimensions.rows) // New array with rows
-            .fill(0).map(row => new Array(this._dimensions.cols) // Fill array and map its contents
             .fill(0)
-            .map(col => ({
+            .map((row) => new Array(this._dimensions.cols) // Fill array and map its contents
+            .fill(0)
+            .map((col) => ({
             state: Math.floor(Math.random() * 2),
-            heatCount: 0
+            heatCount: 0,
         }))); // Map contents to column
         this._dimensions.gameWidth = this._dimensions.cols * this._cellSize;
         this._dimensions.gameHeight = this._dimensions.rows * this._cellSize;
@@ -25,7 +26,7 @@ class Game {
     get nextGenPack() {
         return {
             currentIteration: this._currentIteration,
-            nextGen: this._nextGen
+            nextGen: this._nextGen,
         };
     }
     get initPack() {
@@ -34,7 +35,7 @@ class Game {
             currentIteration: this._currentIteration,
             dimensions: this._dimensions,
             cellSize: this._cellSize,
-            tickSpeedMultiplier: this._tickSpeedMultiplier
+            tickSpeedMultiplier: this._tickSpeedMultiplier,
         };
     }
     get tickSpeed() {
@@ -88,9 +89,13 @@ class Game {
                 }
             }
         }
-        this._interactions.forEach(interaction => {
+        this._interactions.forEach((interaction) => {
             // 0: row, 1: col, 2: state
-            this._nextGen.push({ row: interaction[0], col: interaction[1], state: interaction[2] });
+            this._nextGen.push({
+                row: interaction[0],
+                col: interaction[1],
+                state: interaction[2],
+            });
             // this._nextGen.push([interaction[0], interaction[1], interaction[2]]);
         });
         this._nextGen.forEach((next, i) => {
@@ -99,7 +104,7 @@ class Game {
             // next.push(++this._currentGen[next[0]][next[1]].heatCount);
             // console.log(this._currentGen[next[0]][next[1]].heatCount);
             // console.log(next);
-            // i % 1000 ? console.log(next) : null; 
+            // i % 1000   ? console.log(next) : null;
         });
         this._interactions.length = 0;
         this._currentIteration++;

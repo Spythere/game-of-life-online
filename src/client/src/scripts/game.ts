@@ -99,6 +99,7 @@ export default class Home extends Vue {
 
     window.addEventListener("resize", () => {
       this.resizeCanvas();
+      this.drawCurrentScene();
     });
   }
 
@@ -118,21 +119,41 @@ export default class Home extends Vue {
 
       this.calculateViewBox();
 
-      this.drawScene();
-      this.drawGrid();
-
+      this.drawCurrentScene();
       this.gameState = GameState.RUNNING;
-      this.renderGame();
+
+      this.gameLoop();
     });
 
     this.socket.on("update_pack", (updatePack: any) => {
       this.gameGrid.updates = updatePack.nextGen;
 
-      // updatePack.nextGen.forEach((next: any) => {
-      //     // this.$set(this.gameGrid.currentGen[next[0]][next[1]], 'state', next[2]);
-      //     // this.$set(this.gameGrid.currentGen[next[0]][next[1]], 'heatCount', next[3]);
+      this.gameGrid.updates.forEach((update) => {
+        this.gameGrid.currentGen[update.row][update.col].state = update.state;
 
-      // });
+        if (
+          update.row >= this.camera.viewBox.fromCellY &&
+          update.row <= this.camera.viewBox.toCellY &&
+          update.col >= this.camera.viewBox.fromCellX &&
+          update.col <= this.camera.viewBox.toCellX
+        ) {
+          this.context.fillStyle = update.state ? "black" : "white";
+
+          this.context.fillRect(
+            update.col * this.gameGrid.cellSize + this.camera.offsetX,
+            update.row * this.gameGrid.cellSize + this.camera.offsetY,
+            this.gameGrid.cellSize,
+            this.gameGrid.cellSize
+          );
+
+          this.context.strokeRect(
+            update.col * this.gameGrid.cellSize + this.camera.offsetX,
+            update.row * this.gameGrid.cellSize + this.camera.offsetY,
+            this.gameGrid.cellSize,
+            this.gameGrid.cellSize
+          );
+        }
+      });
 
       this.gameGrid.currentIteration = updatePack.currentIteration;
     });
@@ -165,23 +186,23 @@ export default class Home extends Vue {
   mouseMove(e: MouseEvent) {
     if (this.gameState != GameState.RUNNING) return;
 
-    // const boundaries = this.context.canvas.getBoundingClientRect();
+    this.mouseCellCol = Math.floor(
+      (e.pageX - this.camera.offsetX - this.canvasBoundary.left) /
+        this.gameGrid.cellSize
+    );
 
-    // this.mouseCellCol = Math.floor(
-    //     (e.pageX - this.camera.offsetX - boundaries.left) / this.gameGrid.cellSize
-    // );
-
-    // this.mouseCellRow = Math.floor(
-    //     (e.pageY - this.camera.offsetY - boundaries.top) / this.gameGrid.cellSize
-    // );
+    this.mouseCellRow = Math.floor(
+      (e.pageY - this.camera.offsetY - this.canvasBoundary.top) /
+        this.gameGrid.cellSize
+    );
 
     if (this.mouseDragging) {
       this.camera.offsetX = e.pageX - this.mousePanStartX;
       this.camera.offsetY = e.pageY - this.mousePanStartY;
+      this.calculateViewBox();
 
       this.needRedraw = true;
-
-      this.calculateViewBox();
+      this.drawCurrentScene();
     }
   }
 
@@ -198,8 +219,16 @@ export default class Home extends Vue {
   mouseUp(e: MouseEvent) {
     if (this.gameState != GameState.RUNNING) return;
 
-    this.mouseDragging = false;
-    this.needRedraw = false;
+    if (this.mouseDragging) {
+      this.camera.offsetX = e.pageX - this.mousePanStartX;
+      this.camera.offsetY = e.pageY - this.mousePanStartY;
+
+      // this.calculateViewBox();
+      this.drawCurrentScene();
+
+      this.mouseDragging = false;
+      this.needRedraw = false;
+    }
   }
 
   canvasClick(e: MouseEvent) {
@@ -217,13 +246,17 @@ export default class Home extends Vue {
     this.patternCreator.closeCreator();
   }
 
-  drawScene() {
+  drawCurrentScene() {
     this.context.fillStyle = "white";
     this.context.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
 
+    // All game states
     this.context.fillStyle = "black";
-    for (let row = 0; row < this.gameGrid.dimensions.rows; row++) {
-      for (let col = 0; col < this.gameGrid.dimensions.cols; col++) {
+    for (let row = this.camera.viewBox.fromCellY; row < this.camera.viewBox.toCellY + 1; row++) {
+      for (let col = this.camera.viewBox.fromCellX; col < this.camera.viewBox.toCellX + 1; col++) {
+        if(row < 0 || row > this.gameGrid.dimensions.rows - 1) continue;
+        if(col < 0 || col > this.gameGrid.dimensions.cols - 1) continue;
+
         if (this.gameGrid.currentGen[row][col].state == 1)
           this.context.fillRect(
             col * this.gameGrid.cellSize + this.camera.offsetX,
@@ -233,14 +266,16 @@ export default class Home extends Vue {
           );
       }
     }
-  }
 
-  drawGrid() {
     this.context.lineWidth = 1;
     this.context.strokeStyle = "gray";
 
-    for (let row = 0; row < this.gameGrid.dimensions.rows; row++) {
-      for (let col = 0; col < this.gameGrid.dimensions.cols; col++) {
+    // Grid on top layer
+    for (let row = this.camera.viewBox.fromCellY; row < this.camera.viewBox.toCellY + 1; row++) {
+      for (let col = this.camera.viewBox.fromCellX; col < this.camera.viewBox.toCellX + 1; col++) {
+        if(row < 0 || row > this.gameGrid.dimensions.rows - 1) continue;
+        if(col < 0 || col > this.gameGrid.dimensions.cols - 1) continue;
+        
         this.context.strokeRect(
           col * this.gameGrid.cellSize + this.camera.offsetX,
           row * this.gameGrid.cellSize + this.camera.offsetY,
@@ -251,37 +286,67 @@ export default class Home extends Vue {
     }
   }
 
+  gameLoop() {
+    requestAnimationFrame(this.gameLoop);
+  }
+
   renderGame() {
     if (this.gameState != GameState.RUNNING) {
       requestAnimationFrame(this.renderGame);
       return;
     }
 
-    //If mouse is dragging (camera is changing its position), render scene again
-    if (this.mouseDragging) this.drawScene();
-
     //If there's an update for a cell, redraw it in proper position
-    if (this.gameGrid.updates)
-      this.gameGrid.updates.forEach((update) => {
-        this.context.fillStyle = update.state ? "black" : "white";
 
-        this.context.fillRect(
-          update.col * this.gameGrid.cellSize + this.camera.offsetX,
-          update.row * this.gameGrid.cellSize + this.camera.offsetY,
-          this.gameGrid.cellSize,
-          this.gameGrid.cellSize
-        );
+    let outOfBounds = false;
+    if (this.patternCreator.isPlacing) {
+      this.context.fillStyle = "green";
 
-        this.context.strokeRect(
-          update.col * this.gameGrid.cellSize + this.camera.offsetX,
-          update.row * this.gameGrid.cellSize + this.camera.offsetY,
-          this.gameGrid.cellSize,
-          this.gameGrid.cellSize
-        );
-      });
+      for (let i = 0; i < this.patternCreator.grid.length; i++) {
+        for (let j = 0; j < this.patternCreator.grid.length; j++) {
+          const offsetCol = Math.floor(
+            (this.mouseCellCol + j - 2) * this.gameGrid.cellSize
+          );
+          const offsetRow = Math.floor(
+            (this.mouseCellRow + i - 2) * this.gameGrid.cellSize
+          );
 
-    // Redraw a grid
-    if (this.mouseDragging) this.drawGrid();
+          if (
+            offsetRow < 0 ||
+            offsetRow >= this.gameGrid.dimensions.gameHeight
+          ) {
+            outOfBounds = true;
+            continue;
+          }
+
+          if (
+            offsetCol < 0 ||
+            offsetCol >= this.gameGrid.dimensions.gameWidth
+          ) {
+            outOfBounds = true;
+            continue;
+          }
+
+          if (this.patternCreator.grid[i][j] == 1) {
+            this.context.fillRect(
+              offsetCol,
+              offsetRow,
+              this.gameGrid.cellSize,
+              this.gameGrid.cellSize
+            );
+          }
+        }
+      }
+
+      this.context.strokeStyle = outOfBounds ? "red" : "black";
+      this.context.lineWidth = 2;
+      this.context.strokeRect(
+        (this.mouseCellCol - 2) * this.gameGrid.cellSize,
+        (this.mouseCellRow - 2) * this.gameGrid.cellSize,
+        this.gameGrid.cellSize * 5,
+        this.gameGrid.cellSize * 5
+      );
+    }
 
     // for (let row = 0; row < this.gameGrid.dimensions.rows; row++) {
     //     for (let col = 0; col < this.gameGrid.dimensions.cols; col++) {
@@ -356,6 +421,6 @@ export default class Home extends Vue {
     //     );
     // }
 
-    requestAnimationFrame(this.renderGame);
+    // requestAnimationFrame(this.renderGame);
   }
 }

@@ -35,7 +35,7 @@ class App {
     }
     handleSockets() {
         this.io.on("connection", (socket) => {
-            console.log(`Socket ${socket.id} has connected to the server!`);
+            // console.log(`Socket ${socket.id} has connected to the server!`);
             socket.join("game_room");
             socket.emit("init_pack", this.game.initPack);
             socket.on("create_pattern", ({ pattern, offsetRow, offsetCol }) => {
