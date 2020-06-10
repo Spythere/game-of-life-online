@@ -68,8 +68,10 @@ export class Game {
         if (col < 0 || col >= this._dimensions.cols) continue;
         if (row < 0 || row >= this._dimensions.rows) continue;
 
+        //
+
         if (pattern[i][j] == 1) {
-          this._interactions.push([col, row, pattern[i][j]]);
+          this._interactions.push([row, col, pattern[i][j]]);
           // this._updates.push({ row, col, state: 1, heatCount: ++});
         }
       }

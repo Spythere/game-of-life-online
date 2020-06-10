@@ -121,8 +121,6 @@ export default class Home extends Vue {
 
       this.drawCurrentScene();
       this.gameState = GameState.RUNNING;
-
-      this.gameLoop();
     });
 
     this.socket.on("update_pack", (updatePack: any) => {
@@ -194,7 +192,7 @@ export default class Home extends Vue {
     this.mouseCellRow = Math.floor(
       (e.pageY - this.camera.offsetY - this.canvasBoundary.top) /
         this.gameGrid.cellSize
-    );
+    );    
 
     if (this.mouseDragging) {
       this.camera.offsetX = e.pageX - this.mousePanStartX;
@@ -203,6 +201,11 @@ export default class Home extends Vue {
 
       this.needRedraw = true;
       this.drawCurrentScene();
+    }
+
+    if(this.patternCreator.isPlacing){
+      this.drawCurrentScene();
+      this.drawPattern();
     }
   }
 
@@ -244,6 +247,8 @@ export default class Home extends Vue {
 
     this.patternCreator.resetGrid();
     this.patternCreator.closeCreator();
+
+    this.drawCurrentScene();
   }
 
   drawCurrentScene() {
@@ -286,51 +291,30 @@ export default class Home extends Vue {
     }
   }
 
-  gameLoop() {
-    requestAnimationFrame(this.gameLoop);
-  }
-
-  renderGame() {
-    if (this.gameState != GameState.RUNNING) {
-      requestAnimationFrame(this.renderGame);
-      return;
-    }
-
-    //If there's an update for a cell, redraw it in proper position
-
+  drawPattern(){
     let outOfBounds = false;
-    if (this.patternCreator.isPlacing) {
-      this.context.fillStyle = "green";
+    this.context.fillStyle = "green";
 
       for (let i = 0; i < this.patternCreator.grid.length; i++) {
         for (let j = 0; j < this.patternCreator.grid.length; j++) {
-          const offsetCol = Math.floor(
-            (this.mouseCellCol + j - 2) * this.gameGrid.cellSize
-          );
-          const offsetRow = Math.floor(
-            (this.mouseCellRow + i - 2) * this.gameGrid.cellSize
-          );
+          const offsetCol = Math.floor((this.mouseCellCol + j - 2) * this.gameGrid.cellSize);
+          const offsetRow = Math.floor((this.mouseCellRow + i - 2) * this.gameGrid.cellSize);
+          
 
-          if (
-            offsetRow < 0 ||
-            offsetRow >= this.gameGrid.dimensions.gameHeight
-          ) {
+          if (offsetRow < 0 || offsetRow >= this.gameGrid.dimensions.gameHeight) {
             outOfBounds = true;
             continue;
           }
 
-          if (
-            offsetCol < 0 ||
-            offsetCol >= this.gameGrid.dimensions.gameWidth
-          ) {
+          if (offsetCol < 0 || offsetCol >= this.gameGrid.dimensions.gameWidth) {
             outOfBounds = true;
             continue;
           }
 
           if (this.patternCreator.grid[i][j] == 1) {
             this.context.fillRect(
-              offsetCol,
-              offsetRow,
+              offsetCol + this.camera.offsetX,
+              offsetRow + this.camera.offsetY,
               this.gameGrid.cellSize,
               this.gameGrid.cellSize
             );
@@ -341,86 +325,10 @@ export default class Home extends Vue {
       this.context.strokeStyle = outOfBounds ? "red" : "black";
       this.context.lineWidth = 2;
       this.context.strokeRect(
-        (this.mouseCellCol - 2) * this.gameGrid.cellSize,
-        (this.mouseCellRow - 2) * this.gameGrid.cellSize,
+        (this.mouseCellCol - 2) * this.gameGrid.cellSize + this.camera.offsetX,
+        (this.mouseCellRow - 2) * this.gameGrid.cellSize + this.camera.offsetY,
         this.gameGrid.cellSize * 5,
         this.gameGrid.cellSize * 5
       );
-    }
-
-    // for (let row = 0; row < this.gameGrid.dimensions.rows; row++) {
-    //     for (let col = 0; col < this.gameGrid.dimensions.cols; col++) {
-    //         // for (let row = this.camera.viewBox.fromCellX - 1; row <= this.camera.viewBox.toCellX + 1; row++) {
-    //         //     for (let col = this.camera.viewBox.fromCellY - 1; col <= this.camera.viewBox.toCellY + 1; col++) {
-    //         if (row > this.gameGrid.dimensions.rows - 1 || row < 0) continue;
-    //         if (col > this.gameGrid.dimensions.cols - 1 || col < 0) continue;
-
-    //         const cell = this.gameGrid.currentGen[row][col];
-
-    //         // if (!this.heatmapOn)
-    //         //     this.context.fillStyle = cell.state ? "black" : "white";
-    //         // else
-    //         //     this.context.fillStyle = `hsl(${cell.heatCount}, 100%, 50%)`;
-
-    //         this.context.fillStyle = cell.state ? "black" : "white";
-
-    //         this.context.fillRect(
-    //             row * this.gameGrid.cellSize + this.camera.offsetX,
-    //             col * this.gameGrid.cellSize + this.camera.offsetY,
-    //             this.gameGrid.cellSize,
-    //             this.gameGrid.cellSize
-    //         );
-
-    //         // this.context.strokeRect(
-    //         //     row * this.gameGrid.cellSize + this.camera.offsetX,
-    //         //     col * this.gameGrid.cellSize + this.camera.offsetY,
-    //         //     this.gameGrid.cellSize,
-    //         //     this.gameGrid.cellSize
-    //         // );
-    //     }
-    // }
-
-    // //Render pattern preview if in placing pattern mode
-    // let outOfBounds = false;
-    // if (this.patternCreator.isPlacing) {
-    //     this.context.fillStyle = "green";
-
-    //     for (let i = 0; i < this.patternCreator.grid.length; i++) {
-    //         for (let j = 0; j < this.patternCreator.grid.length; j++) {
-    //             const offsetCol = Math.floor((this.mouseCellCol + j - 2) * this.gameGrid.cellSize);
-    //             const offsetRow = Math.floor((this.mouseCellRow + i - 2) * this.gameGrid.cellSize);
-
-    //             if (offsetRow < 0 || offsetRow >= this.gameGrid.dimensions.gameHeight) {
-    //                 outOfBounds = true;
-    //                 continue;
-    //             }
-
-    //             if (offsetCol < 0 || offsetCol >= this.gameGrid.dimensions.gameWidth) {
-    //                 outOfBounds = true;
-    //                 continue;
-    //             }
-
-    //             if (this.patternCreator.grid[i][j] == 1) {
-    //                 this.context.fillRect(
-    //                     (offsetCol),
-    //                     (offsetRow),
-    //                     this.gameGrid.cellSize,
-    //                     this.gameGrid.cellSize
-    //                 );
-    //             }
-    //         }
-    //     }
-
-    //     this.context.strokeStyle = outOfBounds ? "red" : "black";
-    //     this.context.lineWidth = 2;
-    //     this.context.strokeRect(
-    //         (this.mouseCellCol - 2) * this.gameGrid.cellSize,
-    //         (this.mouseCellRow - 2) * this.gameGrid.cellSize,
-    //         this.gameGrid.cellSize * 5,
-    //         this.gameGrid.cellSize * 5
-    //     );
-    // }
-
-    // requestAnimationFrame(this.renderGame);
   }
 }
