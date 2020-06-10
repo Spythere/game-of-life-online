@@ -1,6 +1,6 @@
 export class Game {
     private _currentGen: { state: number, heatCount: number }[][] = [];
-    private _nextGen: number[][] = [];
+    private _nextGen: {row: number, col: number, state: number}[] = [];
     private _interactions: number[][] = [];
     // private _heatMap: number[][] = [];
     private _updates: { row: number, col: number, state: number, heatCount: number }[] = [];
@@ -19,15 +19,6 @@ export class Game {
                     state: Math.floor(Math.random() * 2),
                     heatCount: 0
                 }))); // Map contents to column
-
-        // console.log(this._currentGen);
-
-
-        // for (let i = 0; i < this._dimensions.rows; i++) {
-        //     for (let j = 0; j < this._dimensions.cols; j++) {
-        //         this._heatMap[i][j] = 0;
-        //     }
-        // }
 
         this._dimensions.gameWidth = this._dimensions.cols * this._cellSize;
         this._dimensions.gameHeight = this._dimensions.rows * this._cellSize;
@@ -95,31 +86,34 @@ export class Game {
                         if (nCol < 0 || nCol >= this._dimensions.cols)
                             continue;
 
-                        const nCellState = this._currentGen[nRow][nCol].state;
-
-                        if (nCellState) liveNeighbors++;
+                        if (this._currentGen[nRow][nCol].state) liveNeighbors++;
                     }
                 }
 
                 if (cellState && (liveNeighbors < 2 || liveNeighbors > 3)) {
-                    this._nextGen.push([row, col, 0]);
+                    this._nextGen.push({ row, col, state: 0});
+                    // this._nextGen.push([row, col, 0]);
                     // this._updates.push({ row, col, state: 1, heatCount: ++this._heatMap[col + row * this._dimensions.cols], updated: true});
                 }
 
                 if (!cellState && liveNeighbors == 3) {
-                    this._nextGen.push([row, col, 1]);
+                    this._nextGen.push({ row, col, state: 1});
+
+                    // this._nextGen.push([row, col, 1]);
                 }
             }
         }
 
         this._interactions.forEach(interaction => {
             // 0: row, 1: col, 2: state
-            this._nextGen.push([interaction[0], interaction[1], interaction[2]]);
+            this._nextGen.push({ row: interaction[0], col: interaction[1], state: interaction[2]})
+            // this._nextGen.push([interaction[0], interaction[1], interaction[2]]);
         });
 
         this._nextGen.forEach((next, i) => {
-            this._currentGen[next[0]][next[1]].state = next[2];
-            next.push(++this._currentGen[next[0]][next[1]].heatCount);
+            // this._currentGen[next[0]][next[1]].state = next[2];
+            this._currentGen[next.row][next.col].state = next.state;
+            // next.push(++this._currentGen[next[0]][next[1]].heatCount);
             // console.log(this._currentGen[next[0]][next[1]].heatCount);
             // console.log(next);
             // i % 1000 ? console.log(next) : null; 

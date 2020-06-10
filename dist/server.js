@@ -20,7 +20,7 @@ class App {
         this.server = http_1.default.createServer(this.app);
         this.io = socket_io_1.default(this.server);
         this.game = new game_1.Game();
-        this.app.use(express_1.default.static(path_1.default.resolve(__dirname, './public')));
+        this.app.use(express_1.default.static(path_1.default.resolve(__dirname, "./public")));
         this.server.listen(this.PORT, () => {
             console.log(`Server is running on port ${this.PORT}`);
         });
@@ -30,15 +30,15 @@ class App {
     gameLoop() {
         setInterval(() => {
             this.game.upgradeGrid();
-            this.io.to('game_room').emit('update_pack', this.game.nextGenPack);
+            this.io.to("game_room").emit("update_pack", this.game.nextGenPack);
         }, 1000 / this.game.tickSpeed);
     }
     handleSockets() {
-        this.io.on('connection', socket => {
+        this.io.on("connection", (socket) => {
             console.log(`Socket ${socket.id} has connected to the server!`);
-            socket.join('game_room');
-            socket.emit('init_pack', this.game.initPack);
-            socket.on('create_pattern', ({ pattern, offsetRow, offsetCol }) => {
+            socket.join("game_room");
+            socket.emit("init_pack", this.game.initPack);
+            socket.on("create_pattern", ({ pattern, offsetRow, offsetCol }) => {
                 if (!Number.isInteger(offsetRow) || !Number.isInteger(offsetCol))
                     return;
                 if (!Array.isArray(pattern))
@@ -51,7 +51,7 @@ class App {
                 }
                 this.game.addPattern(pattern, offsetRow, offsetCol);
             });
-            socket.on('disconnect', () => {
+            socket.on("disconnect", () => {
                 console.log(`Socket ${socket.id} has left the server!`);
             });
         });
